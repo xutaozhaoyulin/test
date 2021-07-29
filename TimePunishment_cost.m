@@ -1,0 +1,50 @@
+function C3= TimePunishment_cost(route,D,TimeWindows,speed,ST,p_early,p_late)
+%函数名称:TimePunishment_cost
+%函数功能:计算时间惩罚成本
+%{
+参数说明:
+route:表示单个蚂蚁的路径信息
+TimeWindows:表示所有客户的时间窗信息
+speed:表示货车行驶的速度
+p_early:表示早到时间惩罚成本
+p_late:表示迟到的时间惩罚成本
+%}
+%函数返回:时间惩罚成本
+C3=0;k=1;%初始化
+t1=0;%表示货车在路上行驶的时间
+t2=ST;%表示货车在服务点停留的总时间
+EET=TimeWindows(:,1);%表示最早可接受时间
+ET=TimeWindows(:,2);%渴望服务的最早时间
+LT=TimeWindows(:,3);%渴望服务的最晚时间
+LLT=TimeWindows(:,4);%表示最晚可接受时间
+iter=sum(sum(route~=0));%获取数组中非0元素的个数 ，即走过的城市总数目
+while k<iter-1
+    %遍历所有路径
+    if(route(k)==1&&k==1)%初始路径
+        t1=ET(1);%表示汽车在配送中心，相当于另一辆汽车，这些汽车可以同步执行,并且在配送中心的车不产生时间惩罚成本
+        t1=t1+D(route(k),route(k+1))/speed;%算上路上花费的时间
+    elseif(route(k+1)==1&&k~=1)%后面碰到返回配送中心的情况
+        t1=ET(1);%获取达到客户点i的路上的行驶时间
+        %t1=t1+D(route(k),route(k+1))/speed;%算出路上花费的时间
+    else%表示从客户点到另一个客户点
+         t1=t1+D(route(k),route(k+1))/speed;
+    end
+    if((t1>=EET(route(k+1)))&&(t1<ET(route(k+1))))
+        %表示汽车早到，早到只能在规定时间内卸货，即在ET之后卸货
+        C3=C3+p_early*(ET(route(k+1))-t1);
+        t1=t1+(ET(route(k+1))-t1+t2(route(k+1)));%需要把惩罚时间算到等待时间去
+    elseif((t1>=LT(route(k+1))-t2(route(k+1)))&&(t1<(LLT(route(k+1))-t2(route(k+1)))))
+        %表示汽车迟到
+        C3=C3+p_late*(t1+t2(route(k+1))-LT(route(k+1)));
+        t1=t1+t2(route(k+1));%算上总的服务时间
+    elseif((t1>=ET(route(k+1)))&&(t1<LT(route(k+1))-t2(route(k+1))))
+        %表示汽车在规定时间内到达
+        C3=C3+0;
+        t1=t1+t2(route(k+1));%算上总的服务时间
+    else
+        %其他情况不存在，加上一个极大值
+        C3=C3+65535;
+    end
+    k=k+1;
+end
+
